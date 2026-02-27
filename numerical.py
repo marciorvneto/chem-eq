@@ -7,6 +7,7 @@ from thermo import (
     lagrangian_jac,
     gamma_debye_huckel,
 )
+from helper import to_mole_fractions
 
 
 def newton_raphson(
