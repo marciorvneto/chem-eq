@@ -1,0 +1,3 @@
+from thermo import test_analytical_approximations
+
+test_analytical_approximations()
