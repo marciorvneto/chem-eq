@@ -8,7 +8,9 @@ from thermo import (
 )
 
 
-def newton_raphson(n0, nT0, lamb0, nu0, T, gamma, total_atoms, tol=1e-8, max_iter=100):
+def newton_raphson(
+    n0, nT0, lamb0, nu0, T, gamma, total_atoms, db, tol=1e-8, max_iter=100
+):
     n = n0.copy()
     nT = nT0
     lamb = lamb0.copy()
@@ -19,10 +21,10 @@ def newton_raphson(n0, nT0, lamb0, nu0, T, gamma, total_atoms, tol=1e-8, max_ite
 
     for i in range(max_iter):
         # 1. Assemble the KKT gradient vector F
-        F_n = d_lagrangian_n(n, nT, lamb, nu, T, gamma, total_atoms)
-        F_nT = d_lagrangian_nT(n, nT, lamb, nu, T, gamma, total_atoms)
-        F_lamb = d_lagrangian_lamb(n, nT, lamb, nu, T, gamma, total_atoms)
-        F_nu = d_lagrangian_nu(n, nT, lamb, nu, T, gamma, total_atoms)
+        F_n = d_lagrangian_n(n, nT, lamb, nu, T, gamma, total_atoms, db)
+        F_nT = d_lagrangian_nT(n, nT, lamb, nu, T, gamma, total_atoms, db)
+        F_lamb = d_lagrangian_lamb(n, nT, lamb, nu, T, gamma, total_atoms, db)
+        F_nu = d_lagrangian_nu(n, nT, lamb, nu, T, gamma, total_atoms, db)
 
         # Flatten into a single 1D array
         F = np.concatenate(
@@ -41,7 +43,7 @@ def newton_raphson(n0, nT0, lamb0, nu0, T, gamma, total_atoms, tol=1e-8, max_ite
             break
 
         # 2. Assemble the KKT Jacobian matrix J
-        J = lagrangian_jac(n, nT, lamb, nu, T, gamma, total_atoms)
+        J = lagrangian_jac(n, nT, lamb, nu, T, gamma, total_atoms, db)
 
         # 3. Solve the linear system: J * dx = -F
         try:
@@ -75,7 +77,7 @@ def newton_raphson(n0, nT0, lamb0, nu0, T, gamma, total_atoms, tol=1e-8, max_ite
         lamb += alpha * dlamb
         nu += alpha * dnu
 
-        print(f"Iter {i:3d} | Error: {error:.2e} | Step size (alpha): {alpha:.4f}")
+        # print(f"Iter {i:3d} | Error: {error:.2e} | Step size (alpha): {alpha:.4f}")
 
     else:
         print("Failed to converge within maximum iterations.")

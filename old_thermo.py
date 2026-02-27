@@ -1,6 +1,64 @@
 import numpy as np
 
-_R = 8.314
+# Species reference list (to keep track of the indices)
+species = ["H2", "N2", "O2", "H2O", "CO", "CO2", "CH4", "NH3", "NO", "NO2"]
+
+# Standard Enthalpy of formation at 298.15 K (J/mol)
+h_f_std = np.array(
+    [
+        0.0,  # H2
+        0.0,  # N2
+        0.0,  # O2
+        -241820.0,  # H2O
+        -110530.0,  # CO
+        -393510.0,  # CO2
+        -74810.0,  # CH4
+        -45900.0,  # NH3
+        90290.0,  # NO
+        33180.0,  # NO2
+    ]
+)
+
+# Standard Gibbs free energy of formation at 298.15 K, 1 bar (in J/mol)
+g_f_std = np.array(
+    [
+        0.0,  # H2
+        0.0,  # N2
+        0.0,  # O2
+        -228570.0,  # H2O
+        -137170.0,  # CO
+        -394360.0,  # CO2
+        -50720.0,  # CH4
+        -16450.0,  # NH3
+        86550.0,  # NO
+        51310.0,  # NO2
+    ]
+)
+
+# delta_G = delta_H - T * delta_S  =>  delta_S = (delta_H - delta_G) / T
+s_f_std = (h_f_std - g_f_std) / 298.15
+
+# Elemental abundance matrix (rows = species, columns = C, H, O, N)
+# Arranged this way so you can easily transpose it for the mass balance constraint: A^T @ n = b
+atom_matrix = np.array(
+    [
+        # C, H, O, N
+        [0, 2, 0, 0],  # H2
+        [0, 0, 0, 2],  # N2
+        [0, 0, 2, 0],  # O2
+        [0, 2, 1, 0],  # H2O
+        [1, 0, 1, 0],  # CO
+        [1, 0, 2, 0],  # CO2
+        [1, 4, 0, 0],  # CH4
+        [0, 3, 0, 1],  # NH3
+        [0, 0, 1, 1],  # NO
+        [0, 0, 2, 1],  # NO2
+    ]
+)
+
+# Universal gas constant (J/(mol*K))
+_R = 8.314462618
+
 
 #############################################
 #
@@ -9,28 +67,25 @@ _R = 8.314
 #############################################
 
 
-def potential_RT(n, nT, T, gamma, db):
-    h_f_std = db["dHf_std"]
-    s_f_std = db["dSf_std"]
+def potential_RT(n, nT, T, gamma):
     g_f_T = h_f_std - T * s_f_std
     return g_f_T / (_R * T) + np.log(n) - np.log(nT) + np.log(gamma)
 
 
-def gibbs_RT(n, nT, T, gamma, db):
-    mu = potential_RT(n, nT, T, gamma, db)
+def gibbs_RT(n, nT, T, gamma):
+    mu = potential_RT(n, nT, T, gamma)
     return n.dot(mu)
 
 
-def lagrangian(n, nT, lamb, nu, T, gamma, total_atoms, db):
-    atom_matrix = db["atom_matrix"]
+def lagrangian(n, nT, lamb, nu, T, gamma, total_atoms):
     atom_balances = n.T @ atom_matrix - total_atoms
     total_moles_balance = np.sum(n) - nT
     lamb_term = lamb.T.dot(atom_balances.T)
     nu_term = nu * total_moles_balance
-    return gibbs_RT(n, nT, T, gamma, db) + lamb_term + nu_term
+    return gibbs_RT(n, nT, T, gamma) + lamb_term + nu_term
 
 
-def grad_lagrangian(n, nT, lamb, nu, T, gamma, total_atoms, db):
+def grad_lagrangian(n, nT, lamb, nu, T, gamma, total_atoms):
     return np.concatenate(
         [
             d_lagrangian_n(n, nT, lamb, nu, T, gamma, total_atoms).T,
@@ -41,31 +96,28 @@ def grad_lagrangian(n, nT, lamb, nu, T, gamma, total_atoms, db):
     )
 
 
-def d_lagrangian_n(n, nT, lamb, nu, T, gamma, total_atoms, db):
-    atom_matrix = db["atom_matrix"]
+def d_lagrangian_n(n, nT, lamb, nu, T, gamma, total_atoms):
     return (
-        potential_RT(n, nT, T, gamma, db).T
+        potential_RT(n, nT, T, gamma).T
         + n.T.dot(np.diag(1 / n))
         + lamb.T.dot(atom_matrix.T)
         + nu * np.ones(len(n))
     )
 
 
-def d_lagrangian_nT(n, nT, lamb, nu, T, gamma, total_atoms, db):
+def d_lagrangian_nT(n, nT, lamb, nu, T, gamma, total_atoms):
     return -np.sum(n) / nT - nu
 
 
-def d_lagrangian_lamb(n, nT, lamb, nu, T, gamma, total_atoms, db):
-    atom_matrix = db["atom_matrix"]
+def d_lagrangian_lamb(n, nT, lamb, nu, T, gamma, total_atoms):
     return n.T.dot(atom_matrix) - total_atoms.T
 
 
-def d_lagrangian_nu(n, nT, lamb, nu, T, gamma, total_atoms, db):
+def d_lagrangian_nu(n, nT, lamb, nu, T, gamma, total_atoms):
     return np.sum(n) - nT
 
 
-def lagrangian_jac(n, nT, lamb, nu, T, gamma, total_atoms, db):
-    atom_matrix = db["atom_matrix"]
+def lagrangian_jac(n, nT, lamb, nu, T, gamma, total_atoms):
     N = len(n)
     C = len(lamb)
 
@@ -101,95 +153,57 @@ def lagrangian_jac(n, nT, lamb, nu, T, gamma, total_atoms, db):
     return J[0, 0, :, :]
 
 
-#############################################
-#
-#   Activity models
-#
-#############################################
+nF = np.array(
+    [
+        1e-12,  # H2
+        1e-12,  # N2
+        1e-12,  # O2
+        3.0,  # H2O
+        3.0,  # CO
+        3.0,  # CO2
+        3.0,  # CH4
+        3.0,  # NH3
+        1e-12,  # NO
+        1e-12,  # NO2
+    ]
+)
+n0 = np.array(
+    [
+        3,  # H2
+        3,  # N2
+        3,  # O2
+        3.0,  # H2O
+        3.0,  # CO
+        3.0,  # CO2
+        3.0,  # CH4
+        3.0,  # NH3
+        3,  # NO
+        3,  # NO2
+    ]
+)
+lamb0 = np.array(
+    [
+        1.0,  # C
+        1.0,  # H
+        1.0,  # O
+        1.0,  # N
+    ]
+)
+gamma0 = np.abs(np.random.random(n0.shape))
+nu0 = 1.0
+nT0 = 1.0
+T = 400
+total_atoms = nF.T @ atom_matrix
+N = len(n0)
+C = len(lamb0)
 
-
-def gamma_debye_huckel(n, nT, T, db):
-    """Extended Debye-Hückel for aqueous solutes, Raoult's law for solvent."""
-    species = db["species"]
-    molar_mass = db["molar_mass"]
-    Z = db["Z"]
-    idx_w = species.index("H2O(l)")
-
-    # Molality calculation
-    moles_water = max(n[idx_w], 1e-12)
-    kg_water = moles_water * molar_mass[idx_w]
-    molality = n / kg_water
-    molality[idx_w] = 0.0  # Solvent doesn't contribute to its own molality
-
-    # Ionic Strength
-    I = 0.5 * np.sum(molality * (Z**2))
-
-    A = 1.172  # Approx for 298K
-    B_a = 1.0
-
-    ln_gamma = -A * (Z**2) * np.sqrt(I) / (1.0 + B_a * np.sqrt(I))
-    gamma = np.exp(ln_gamma)
-    gamma[idx_w] = 1.0  # Ideal solvent
-
-    return gamma
-
-
-#######################################
-#
-#   Numerical approximation tests
-#
-#######################################
+dn = np.abs(np.random.randn(N)) * 1e-12
+dnT = np.abs(np.random.randn()) * 1e-12
+dlamb = np.abs(np.random.randn(C)) * 1e-12
+dnu = np.abs(np.random.randn()) * 1e-12
 
 
 def test_analytical_approximations():
-    nF = np.array(
-        [
-            1e-12,  # H2
-            1e-12,  # N2
-            1e-12,  # O2
-            3.0,  # H2O
-            3.0,  # CO
-            3.0,  # CO2
-            3.0,  # CH4
-            3.0,  # NH3
-            1e-12,  # NO
-            1e-12,  # NO2
-        ]
-    )
-    n0 = np.array(
-        [
-            3,  # H2
-            3,  # N2
-            3,  # O2
-            3.0,  # H2O
-            3.0,  # CO
-            3.0,  # CO2
-            3.0,  # CH4
-            3.0,  # NH3
-            3,  # NO
-            3,  # NO2
-        ]
-    )
-    lamb0 = np.array(
-        [
-            1.0,  # C
-            1.0,  # H
-            1.0,  # O
-            1.0,  # N
-        ]
-    )
-    gamma0 = np.abs(np.random.random(n0.shape))
-    nu0 = 1.0
-    nT0 = 1.0
-    T = 400
-    total_atoms = nF.T @ atom_matrix
-    N = len(n0)
-    C = len(lamb0)
-
-    dn = np.abs(np.random.randn(N)) * 1e-12
-    dnT = np.abs(np.random.randn()) * 1e-12
-    dlamb = np.abs(np.random.randn(C)) * 1e-12
-    dnu = np.abs(np.random.randn()) * 1e-12
 
     #######################################
     #

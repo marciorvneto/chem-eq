@@ -44,19 +44,15 @@ def load_thermo_database(filepath="thermo_db.csv"):
     # Extract charges (the last column of the atom matrix)
     Z = atom_matrix[:, -1]
 
-    # Universal gas constant
-    _R = 8.314462618
-
     return {
         "species": species,
         "states": states,
-        "h_f_std": h_f_std,
-        "g_f_std": g_f_std,
-        "s_f_std": s_f_std,
+        "dHf_std": h_f_std,
+        "dGf_std": g_f_std,
+        "dSf_std": s_f_std,
         "molar_mass": molar_mass,
         "atom_matrix": atom_matrix,
         "Z": Z,
-        "_R": _R,
     }
 
 
