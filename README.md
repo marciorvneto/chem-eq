@@ -92,7 +92,3 @@ Contributions are highly welcome! Here are a few areas that need work:
 - **Database Expansion**: Adding more species, ions, and solids to `thermo_db.txt`.
 - **Solid Precipitation**: Expanding the solver logic to handle the appearance and disappearance of pure solid phases (checking saturation indices).
 - **Advanced Activity Models**: Implementing Pitzer equations for high-salinity brines or Peng-Robinson for real gases.
-
-```
-
-```
