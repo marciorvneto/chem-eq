@@ -54,12 +54,15 @@ feed = create_feed({
 
 # Run the solver
 n_eq, nT_eq = solve_equilibrium(db, feed, T)
+output_sepecies = to_species_dict(db, n_eq, threshold=1e-6)
+
+print("##### Result #####")
+pprint.pprint(output_sepecies)
 ```
 
 **Output:**
 
 ```text
-Converged in 47 iterations! Max KKT error: 3.64e-10
 Outer loop converged in 3 iterations.
 
 ##### Result #####
