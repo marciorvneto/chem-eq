@@ -23,7 +23,7 @@ This library solves arbitrary chemical equilibrium scenarios by directly minimiz
 Clone the repository and install the single dependency (`numpy`):
 
 ```bash
-git clone [https://github.com/marciorvneto/chem-eq](https://github.com/marciorvneto/chem-eq)
+git clone git@github.com:marciorvneto/chem-eq.git
 cd chem-eq
 pip install numpy
 ```
