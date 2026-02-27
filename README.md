@@ -34,10 +34,10 @@ pip install numpy```
 You can define a feed vector and pass it to the solver. The engine will automatically satisfy mass balances and electroneutrality while finding the equilibrium phase distribution.
 
 ```python
-from helper import create_feed, to_mole_fractions, to_species_dict
-from thermo import gamma_debye_huckel
-import matplotlib.pyplot as plt
+import pprint
+from numerical import solve_equilibrium
 from loader import load_thermo_database
+from helper import create_feed, to_species_dict
 
 # Load the components database
 db = load_thermo_database("thermo_db.csv")
@@ -55,7 +55,6 @@ feed = create_feed({
 
 # Run the solver
 n_eq, nT_eq = solve_equilibrium(db, feed, T)
-
 ```
 
 **Output:**
