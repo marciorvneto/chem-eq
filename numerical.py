@@ -5,6 +5,7 @@ from thermo import (
     d_lagrangian_lamb,
     d_lagrangian_nu,
     lagrangian_jac,
+    gamma_debye_huckel,
 )
 
 
@@ -83,3 +84,29 @@ def newton_raphson(
         print("Failed to converge within maximum iterations.")
 
     return n, nT, lamb, nu
+
+
+def solve_equilibrium(db, nF, T, tol_gamma=1e-6):
+    atom_matrix = db["atom_matrix"]
+    N = len(db["species"])
+    C = atom_matrix.shape[1]
+    n = nF
+    lamb = np.ones(C)
+    gamma = np.ones(nF.shape)
+    nu = 1.0
+    nT = 1.0
+    total_atoms = nF.T @ atom_matrix
+
+    err = 1000
+    for i in range(5):
+        n, nT, lamb, nu = newton_raphson(
+            to_mole_fractions(n), nT, lamb, nu, T, gamma, total_atoms, db
+        )
+        gamma_new = gamma_debye_huckel(n, nT, T, db)
+        err = np.linalg.norm(gamma - gamma_new)
+        if err < tol_gamma:
+            print(f"Outer loop converged in {i+1} iterations, with an error of {err}")
+            break
+        gamma = gamma_new
+
+    return n, nT
