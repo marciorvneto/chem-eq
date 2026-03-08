@@ -4,7 +4,7 @@ _R = 8.314
 
 #############################################
 #
-#   Lagrangian grandients and jacobian
+#   Lagrangian gradients and jacobian
 #
 #############################################
 
